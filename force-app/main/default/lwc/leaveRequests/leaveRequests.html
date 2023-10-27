@@ -1,85 +1,48 @@
-import { api, LightningElement, wire } from 'lwc';
-import getLeaveRequests from '@salesforce/apex/LeaveRequstController.getLeaveRequests';
-import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import Id from '@salesforce/user/Id';
-import { refreshApex } from '@salesforce/apex';
+<template>
+    <lightning-card>
+        <lightning-datatable key-field="Id" data={leavesReqeusts} columns={columns}
+            onrowaction={rowActionHandler}></lightning-datatable>
 
-const COLUMNS = [
-    { label: 'Request Id', fieldName: 'Name', cellAttributes: { class: { fieldName: 'cellClass' } } },
-    { label: 'User', fieldName: 'userName', cellAttributes: { class: { fieldName: 'cellClass' } } },
-    { label: 'From Date', fieldName: 'From_Date__c', cellAttributes: { class: { fieldName: 'cellClass' } } },
-    { label: 'To Date', fieldName: 'To_Date__c', cellAttributes: { class: { fieldName: 'cellClass' } } },
-    { label: 'Reason', fieldName: 'Reason__c', cellAttributes: { class: { fieldName: 'cellClass' } } },
-    { label: 'Status', fieldName: 'Status__c', cellAttributes: { class: { fieldName: 'cellClass' } } },
-    { label: 'Manager Comment', fieldName: 'Manager_Comment__c', cellAttributes: { class: { fieldName: 'cellClass' } } },
-    {
-        type: "button", typeAttributes: {
-            label: 'Edit',
-            name: 'Edit',
-            title: 'Edit',
-            value: 'edit',
-            disabled: { fieldName: 'isEditDisabled' }
-        }, cellAttributes: { class: { fieldName: 'cellClass' } }
-    }
-];
-export default class LeaveRequests extends LightningElement {
-    columns = COLUMNS;
+        <template lwc:if={noRecordsFound}>
+            <div class="slds-align_absolute-center slds-p-around_small slds-text-heading_medium">No Records Found</div>
+        </template>
+    </lightning-card>
 
-    leavesReqeusts = [];
-    leavesReqeustsWireResult;
-    showModalPopup = false;
-    objectApiName = 'LeaveRequest__c';
-    recordId = '';
-    currentUserId = Id;
-    @wire(getLeaveRequests)
-    wiredMyLeaves(result) {
-        this.leavesReqeustsWireResult = result;
-        if (result.data) {
-            this.leavesReqeusts = result.data.map(a => ({
-                ...a,
-                userName: a.User__r.Name,
-                cellClass: a.Status__c == 'Approved' ? 'slds-theme_success' : a.Status__c == 'Rejected' ? 'slds-theme_warning' : '',
-                isEditDisabled: a.Status__c != 'Pending'
-            }));
-        }
-        if (result.error) {
-            console.log('Error occured while fetching my leaves- ', result.error);
-        }
-    }
+    <template lwc:if={showModalPopup}>
+        <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="modal-heading-01"
+            class="slds-modal slds-fade-in-open slds-modal_small">
+            <div class="slds-modal__container">
+                <button onclick={popupCloseHandler}
+                    class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse">
+                    <lightning-icon icon-name="utility:close" alternative-text="close" variant="inverse"
+                        size="small"></lightning-icon>
+                    <span class="slds-assistive-text">Cancel and close</span>
+                </button>
+                <div class="slds-modal__header">
+                    <h1 id="modal-heading-01" class="slds-modal__title slds-hyphenate">Leave Request</h1>
+                </div>
+                <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
+                    <lightning-record-edit-form object-api-name={objectApiName} record-id={recordId}
+                        onsuccess={successHandler} lwc:ref="leaveReqeustFrom">
+                        <lightning-output-field field-name="User__c"> </lightning-output-field>
+                        <lightning-output-field field-name="From_Date__c"> </lightning-output-field>
+                        <lightning-output-field field-name="To_Date__c"> </lightning-output-field>
+                        <lightning-output-field field-name="Reason__c"> </lightning-output-field>
+                        <lightning-input-field field-name="Status__c"></lightning-input-field>
+                        <lightning-input-field field-name="Manager_Comment__c"></lightning-input-field>
 
-    get noRecordsFound() {
-        return this.leavesReqeusts.length == 0;
-    }
+                        <div class="slds-var-m-top_medium">
+                            <lightning-button variant="brand" type="submit" label="Save">
+                            </lightning-button>
 
-    newRequestClickHandler() {
-        this.showModalPopup = true;
-        this.recordId = '';
-    }
-    popupCloseHandler() {
-        this.showModalPopup = false;
-    }
+                            <lightning-button label="Cancel" class="slds-m-left_small" onclick={popupCloseHandler}>
+                            </lightning-button>
+                        </div>
+                    </lightning-record-edit-form>
+                </div>
 
-    rowActionHandler(event) {
-        this.showModalPopup = true;
-        this.recordId = event.detail.row.Id;
-    }
-
-    successHandler(event) {
-        this.showModalPopup = false;
-        this.showToast('Data saved successfully');
-        this.refreshGrid();
-    }
-
-    @api
-    refreshGrid() {
-        refreshApex(this.leavesReqeustsWireResult);
-    }
-    showToast(message, title = 'success', variant = 'success') {
-        const event = new ShowToastEvent({
-            title,
-            message,
-            variant
-        });
-        this.dispatchEvent(event);
-    }
-}
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+    </template>
+</template>
